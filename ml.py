@@ -69,17 +69,30 @@ def convertToOnnx(model, input_len, output_dir):
         output_path = output_dir + "/model.onnx"
         model_proto, _ = tf2onnx.convert.from_keras(model, input_signature=spec, opset=13, output_path=output_path)
 
-sep = ':'
-if platform.system() == 'Windows':
-    sep = ';'
+# sep = ':'
+# if platform.system() == 'Windows':
+#     sep = ';'
 
-CLASS_PATH = f'./agent/target/classes{sep}{os.getenv("M2_HOME")}/repository/com/microsoft/onnxruntime/{onnx_jar}{sep}./agent/src/resources/mallet.jar{sep}./agent/src/resources/mallet-deps.jar{sep}{os.getenv("M2_HOME")}/repository/org/jdom/jdom/1.1/jdom-1.1.jar{sep}{os.getenv("M2_HOME")}/repository/com/fasterxml/jackson/core/jackson-databind/2.12.4/jackson-databind-2.12.4.jar{sep}{os.getenv("M2_HOME")}/repository/com/fasterxml/jackson/core/jackson-annotations/2.12.4/jackson-annotations-2.12.4.jar{sep}{os.getenv("M2_HOME")}/repository/com/fasterxml/jackson/core/jackson-core/2.12.4/jackson-core-2.12.4.jar{sep}{os.getenv("M2_HOME")}/repository/org/apache/commons/commons-compress/1.21/commons-compress-1.21.jar{sep}{os.getenv("M2_HOME")}/repository/org/apache/commons/commons-math3/3.6.1/commons-math3-3.6.1.jar{sep}{os.getenv("M2_HOME")}/repository/one/util/streamex/0.8.3/streamex-0.8.3.jar'
+# CLASS_PATH = f'./agent/target/classes{sep}{os.getenv("M2_HOME")}/repository/com/microsoft/onnxruntime/{onnx_jar}{sep}./agent/src/resources/mallet.jar{sep}./agent/src/resources/mallet-deps.jar{sep}{os.getenv("M2_HOME")}/repository/org/jdom/jdom/1.1/jdom-1.1.jar{sep}{os.getenv("M2_HOME")}/repository/com/fasterxml/jackson/core/jackson-databind/2.12.4/jackson-databind-2.12.4.jar{sep}{os.getenv("M2_HOME")}/repository/com/fasterxml/jackson/core/jackson-annotations/2.12.4/jackson-annotations-2.12.4.jar{sep}{os.getenv("M2_HOME")}/repository/com/fasterxml/jackson/core/jackson-core/2.12.4/jackson-core-2.12.4.jar{sep}{os.getenv("M2_HOME")}/repository/org/apache/commons/commons-compress/1.21/commons-compress-1.21.jar{sep}{os.getenv("M2_HOME")}/repository/org/apache/commons/commons-math3/3.6.1/commons-math3-3.6.1.jar{sep}{os.getenv("M2_HOME")}/repository/one/util/streamex/0.8.3/streamex-0.8.3.jar'
 
+def get_maven_classpath():
+    cp_file = './agent/cp.txt'
+    if os.path.exists(cp_file):
+        with open(cp_file, 'r') as f:
+            return f.read().strip()
+    return ""
+
+maven_deps = get_maven_classpath()
+
+sep = ':' if platform.system() != 'Windows' else ';'
+CLASS_PATH = f"./agent/target/classes{sep}./agent/src/resources/mallet.jar{sep}./agent/src/resources/mallet-deps.jar{sep}{maven_deps}"
 
 def snake_case(s):
     return ''.join(['_' + i.lower() if i.isupper()else i for i in s]).lstrip('_')
 
 p = subprocess.run(['java', '--add-opens', 'java.base/java.util=ALL-UNNAMED', '-classpath', CLASS_PATH, 'com.alphaStS.Main', '--get-lengths'], capture_output=True)
+
+lens_data = json.loads(p.stdout.decode('utf-8').strip())
 lens_data = json.loads(p.stdout.decode('utf-8').strip())
 input_len = int(lens_data['inputLength'])
 num_of_actions = int(lens_data['policyLength'])
@@ -578,12 +591,30 @@ if DO_TRAINING:
                 json.dump(training_info, f)
 
 
+# if PLAY_A_GAME:
+#     agent_args = ['java', '--add-opens', 'java.base/java.util=ALL-UNNAMED', '-classpath', CLASS_PATH, 'com.alphaStS.Main', '--server']
+#     agent_output = subprocess.run(agent_args, capture_output=True)
+#     print(agent_output.stdout.decode('ascii'))
+#     print(agent_output.stderr.decode('ascii'))
+#     print(time.time() - start)
+
 if PLAY_A_GAME:
-    agent_args = ['java', '--add-opens', 'java.base/java.util=ALL-UNNAMED', '-classpath', CLASS_PATH, 'com.alphaStS.Main', '--server']
-    agent_output = subprocess.run(agent_args, capture_output=True)
-    print(agent_output.stdout.decode('ascii'))
-    print(agent_output.stderr.decode('ascii'))
-    print(time.time() - start)
+    abs_saves = os.path.abspath(SAVES_DIR)
+    agent_args = ['java', '--add-opens', 'java.base/java.util=ALL-UNNAMED', 
+                  '-classpath', CLASS_PATH, 'com.alphaStS.Main', '--play-1-game', '-dir', abs_saves]
+    p = subprocess.Popen(agent_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    
+    print("Server started, waiting for output...")
+    try:
+        while True:
+            line = p.stdout.readline()
+            if not line and p.poll() is not None:
+                break
+            if line:
+                print(line.strip())
+    except KeyboardInterrupt:
+        p.terminate()
+        print("Server stopped by user.")
 
 if PLAY_MATCHES:
     agent_args = ['java', '--add-opens', 'java.base/java.util=ALL-UNNAMED', '-classpath', CLASS_PATH, 'com.alphaStS.Main', '--client']
