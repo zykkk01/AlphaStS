@@ -24,6 +24,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import com.alphaStS.enums.DebuffType;
 
 import static com.alphaStS.utils.Utils.formatFloat;
 
@@ -233,9 +234,20 @@ public class InteractiveMode {
             } else if (line.equals("eo")) {
                 setEnemyOther(reader, state, history);
                 printState = true;
-            } else if (line.equals("ph")) {
-                setPlayerHealth(reader, state, history);
-                printState = true;
+            } else if (line.startsWith("ph ")) {
+                try {
+                    int hp = Integer.parseInt(line.split(" ")[1]);
+                    state.writeLock();
+                    try {
+                        state.getPlayerForWrite().setHealth(hp);
+                        state.clearAllSearchInfo();
+                    } finally {
+                        state.writeUnlock();
+                    }
+                    out.println("Player HP set to " + hp);
+                } catch (Exception e) {
+                    out.println("Error setting HP: " + e.getMessage());
+                }
             } else if (line.equals("b")) {
                 if (states.size() > 0) {
                     state = states.remove(states.size() - 1).state();
@@ -301,6 +313,57 @@ public class InteractiveMode {
             } else if (line.equals("desc")) {
                 GameStateUtils.writeStateDescription(state, new BufferedWriter(new OutputStreamWriter(out)));
             } else if (line.equals("")) {
+            } else if (line.startsWith("pe ")) {
+                state.energy = Integer.parseInt(line.split(" ")[1]);
+                out.println("Energy set to " + state.energy);
+            } else if (line.startsWith("pb ")) {
+                state.getPlayerForWrite().setBlock(Integer.parseInt(line.split(" ")[1]));
+                out.println("Player block set to " + state.getPlayeForRead().getBlock());
+            } else if (line.startsWith("ps ")) {
+                String[] parts = line.split(" ");
+                var p = state.getPlayerForWrite();
+                state.clearAllSearchInfo();
+                if (parts.length >= 2) p.setStrength(Integer.parseInt(parts[1]));
+                if (parts.length >= 3) p.setDexterity(Integer.parseInt(parts[2]));
+                if (parts.length >= 4) p.setArtifact(Integer.parseInt(parts[3]));
+                if (parts.length >= 5) p.applyDebuff(state, DebuffType.VULNERABLE, Integer.parseInt(parts[4]));
+                if (parts.length >= 6) p.applyDebuff(state, DebuffType.WEAK, Integer.parseInt(parts[5]));
+                out.println("Player stats updated.");
+            } else if (line.startsWith("sh ")) {
+                String[] cardNames = line.substring(3).split(",");
+                state.handArrLen = 0;
+                state.clearAllSearchInfo();
+                for (String name : cardNames) {
+                    var allCards = Arrays.stream(state.properties.cardDict).map(c -> c.cardName).toList();
+                    var match = com.alphaStS.utils.FuzzyMatch.getBestFuzzyMatch(name.trim(), allCards);
+                    if (match != null) {
+                        int idx = allCards.indexOf(match);
+                        state.addCardToHand(idx);
+                    }
+                }
+                out.println("Hand synced: " + state.handArrLen + " cards.");
+            } else if (line.startsWith("decide ")) {
+                System.err.println(">>> AI is thinking...");
+                state.writeLock();
+                try {
+                    int count = Integer.parseInt(line.split(" ")[1]);
+                    if (state.properties.currentMCTS == null) {
+                        out.println("ERROR: currentMCTS is null");
+                    } else {
+                        if (state.policy == null) state.doEval(state.properties.currentMCTS.model);
+                        if (state.n == null) state.initSearchInfo();
+
+                        for (int i = 0; i < count; i++) {
+                            state.properties.currentMCTS.search(state, false, count - i);
+                        }
+                        int actionIdx = MCTS.getActionWithMaxNodesOrTerminal(state);
+                        var action = state.getAction(actionIdx);
+                        out.println("RESULT:" + actionIdx + ":" + state.getActionString(actionIdx) + ":" + action.type());
+                        System.err.println(">>> Decision made: " + state.getActionString(actionIdx));
+                    }
+                } finally {
+                    state.writeUnlock();
+                }
             } else {
                 int action = parseActionInput(state, line);
                 if (action >= 0 && action <= state.getLegalActions().length) {
@@ -2732,6 +2795,7 @@ public class InteractiveMode {
         }
 
         public void setReadFromQueue() {
+            if (this.inputQueue != null) return;
             readFromQueue = true;
             inputQueue = new LinkedBlockingQueue<>();
             shutdown = new AtomicBoolean(false);

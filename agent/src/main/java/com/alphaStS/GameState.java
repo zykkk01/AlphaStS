@@ -147,15 +147,11 @@ public final class GameState implements State {
     }
 
     public void setMultithreaded(boolean multithreaded) {
-        if (multithreaded) {
-            properties.multithreadedMTCS = true;
-            virtualLoss = new AtomicInteger();
-            lock = new ReentrantReadWriteLock();
-            transpositionsLock = new ReentrantLock();
-        } else {
-            properties.multithreadedMTCS = false;
-        }
+    this.properties.multithreadedMTCS = multithreaded;
+    if (multithreaded && virtualLoss == null) {
+        virtualLoss = new AtomicInteger();
     }
+}
 
     private boolean cardIdxArrEqual(short[] a, int aLen, short[] b, int bLen) {
         if (a == b) {
@@ -781,6 +777,10 @@ public final class GameState implements State {
         if (Configuration.UPDATE_TRANSPOSITIONS_ON_ALL_PATH) {
             transpositionsParent = new HashMap<>();
         }
+
+        this.lock = new ReentrantReadWriteLock();
+        this.transpositionsLock = new ReentrantLock();
+        this.virtualLoss = new AtomicInteger();
     }
 
     private void registerPotionTrainingTargets() {
@@ -1082,6 +1082,14 @@ public final class GameState implements State {
         if (properties.multithreadedMTCS) {
             lock = new ReentrantReadWriteLock();
             virtualLoss = new AtomicInteger();
+        }
+
+        this.lock = new ReentrantReadWriteLock();
+        this.transpositionsLock = new ReentrantLock();
+        if (other.virtualLoss != null) {
+            this.virtualLoss = new AtomicInteger(other.virtualLoss.get());
+        } else {
+            this.virtualLoss = new AtomicInteger();
         }
     }
 

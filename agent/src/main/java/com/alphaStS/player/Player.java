@@ -1,6 +1,9 @@
 package com.alphaStS.player;
 
-import com.alphaStS.*;
+import com.alphaStS.GameActionCtx;
+import com.alphaStS.GameState;
+import com.alphaStS.PlayerBuff;
+import com.alphaStS.Potion;
 import com.alphaStS.enums.DebuffType;
 
 public class Player extends PlayerReadOnly {
@@ -267,5 +270,21 @@ public class Player extends PlayerReadOnly {
         if (state.properties.sneckoDebuffCounterIdx >= 0) {
             state.getCounterForWrite()[state.properties.sneckoDebuffCounterIdx] = 0;
         }
+    }
+
+    public void setBlock(int block) {
+        this.block = block;
+    }
+
+    public void setStrength(int strength) {
+        this.strength = strength;
+    }
+
+    public void setDexterity(int dexterity) {
+        this.dexterity = dexterity;
+    }
+
+    public void setArtifact(int artifact) {
+        this.artifact = artifact;
     }
 }

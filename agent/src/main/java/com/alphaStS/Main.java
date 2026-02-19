@@ -46,6 +46,17 @@ public class Main {
         } else if (args.length > 0 && args[0].equals("--interactive-server")) {
             System.out.println("Seed: " + state.properties.random.getSeed(null));
             parseCommonArgs(state, args);
+
+            try {
+                System.out.println("Loading model from: " + CUR_ITER_DIRECTORY);
+                com.alphaStS.model.ModelExecutor modelExecutor = new com.alphaStS.model.ModelExecutor(CUR_ITER_DIRECTORY);
+                modelExecutor.start(1, 1);
+                state.properties.currentMCTS = new MCTS(modelExecutor.getModelForProducer(0));
+                System.out.println("MCTS and Model successfully initialized for server.");
+            } catch (Exception e) {
+                System.err.println("Failed to load model: " + e.getMessage());
+                e.printStackTrace();
+            }
             InteractiveServer.start(state, args);
         } else if (args.length > 0 && args[0].equals("--interactive-server-test")) {
             InteractiveServer.test(args);

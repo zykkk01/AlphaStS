@@ -28,8 +28,9 @@ DO_TRAINING = getFlag('-training')
 USE_GPU = getFlag('-gpu')
 USE_GPU_AGENT_ONLY = getFlag('-gpu_agent')
 SKIP_TRAINING_MATCHES = getFlag('-s')
-PLAY_A_GAME = getFlag('-p')
+PLAY_A_GAME = getFlag('-pg')
 PLAY_MATCHES = getFlag('-m')
+PLAY_GAMES = getFlag('-p')
 NUMBER_OF_THREADS = int(getFlagValue('-t', 1))
 BATCH_PER_THREAD = int(getFlagValue('-b', 1))
 NUMBER_OF_THREADS_TRAINING = int(getFlagValue('-tt', 0))
@@ -458,6 +459,9 @@ if DO_TRAINING:
     if USE_KAGGLE:
         init_kaggle(KAGGLE_DATASET_NAME)
     training_pool = []
+    log_dir = os.path.join(SAVES_DIR, 'agent_logs')
+    os.makedirs(log_dir, exist_ok=True)
+
     start_window = 0
     if training_info['iteration'] >= SLOW_WINDOW_END:
         start_window = max(SLOW_WINDOW_END, training_info['iteration'] - TRAINING_WINDOW_SIZE)
@@ -488,17 +492,24 @@ if DO_TRAINING:
             agent_args += ['-z_train', str(Z_TRAIN_WINDOW_END)]
         if training_info['iteration'] < CURRICULUM_TRAINING_END:
             agent_args += ['-curriculum_training']
+
         agent_output = ''
+        agent_log_file = os.path.join(log_dir, f'iteration{_iteration}.log')
         if not SKIP_FIRST:
-            p = subprocess.Popen(agent_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            while p.poll() is None:
-                line = p.stdout.readline().decode('ascii')
-                print(line, end='', flush=True)
-                agent_output += line
-            err = p.stderr.readlines()
-            if len(err) > 0:
-                [print(line.decode('ascii'), end='', flush=True) for line in err]
-                raise "agent error"
+            with open(agent_log_file, 'w', encoding='utf-8') as log_f:
+                log_f.write(' '.join(agent_args) + '\n\n')
+                p = subprocess.Popen(agent_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+                while True:
+                    line = p.stdout.readline()
+                    if not line and p.poll() is not None:
+                        break
+                    if line:
+                        print(line, end='', flush=True)
+                        log_f.write(line)
+                        agent_output += line
+                return_code = p.wait()
+                if return_code != 0:
+                    raise "agent error"
         else:
             SKIP_FIRST = False
 
@@ -579,6 +590,13 @@ if DO_TRAINING:
         if _iteration == ITERATION_COUNT:
             agent_output = subprocess.run(['java', '--add-opens', 'java.base/java.util=ALL-UNNAMED', '-classpath', CLASS_PATH,
                                            'com.alphaStS.Main', '--training', '-tm', '-t', str(NUMBER_OF_THREADS), '-b', str(BATCH_PER_THREAD), '-c', '5000', '-n', '1', '-dir', SAVES_DIR], capture_output=True)
+
+            final_log_file = os.path.join(log_dir, f'iteration{_iteration}_final_eval.log')
+            with open(final_log_file, 'w', encoding='utf-8') as log_f:
+                log_f.write(agent_output.stdout.decode('ascii', errors='ignore'))
+                log_f.write('\n')
+                log_f.write(agent_output.stderr.decode('ascii', errors='ignore'))
+
             if len(agent_output.stderr) > 0:
                 print(agent_output.stdout.decode('ascii'))
                 print(agent_output.stderr.decode('ascii'))
@@ -618,6 +636,13 @@ if PLAY_A_GAME:
 
 if PLAY_MATCHES:
     agent_args = ['java', '--add-opens', 'java.base/java.util=ALL-UNNAMED', '-classpath', CLASS_PATH, 'com.alphaStS.Main', '--client']
+    agent_output = subprocess.run(agent_args, capture_output=True)
+    print(agent_output.stdout.decode('ascii'))
+    print(agent_output.stderr.decode('ascii'))
+    print(time.time() - start)
+
+if PLAY_GAMES:
+    agent_args = ['java', '--add-opens', 'java.base/java.util=ALL-UNNAMED', '-classpath', CLASS_PATH, 'com.alphaStS.Main', '--play', '-c', '100', '-n', '100', '-dir', SAVES_DIR]
     agent_output = subprocess.run(agent_args, capture_output=True)
     print(agent_output.stdout.decode('ascii'))
     print(agent_output.stderr.decode('ascii'))

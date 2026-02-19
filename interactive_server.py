@@ -23,24 +23,24 @@ import json
 import urllib.request
 import urllib.error
 
-# Path separator for classpath
-sep = ':'
-if platform.system() == 'Windows':
-    sep = ';'
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+AGENT_DIR = os.path.join(ROOT_DIR, "agent")
 
-# Use M2_REPO env var or default to ~/.m2/repository
-M2_REPO = os.getenv("M2_REPO", os.path.expanduser("~/.m2/repository"))
+def get_maven_classpath():
+    cp_file = os.path.join(AGENT_DIR, 'cp.txt')
+    if os.path.exists(cp_file):
+        with open(cp_file, 'r') as f:
+            return f.read().strip()
+    return ""
+
+maven_deps = get_maven_classpath()
+sep = ':' if platform.system() != 'Windows' else ';'
 
 CLASS_PATH = sep.join([
-    './target/classes',
-    f'{M2_REPO}/com/microsoft/onnxruntime/onnxruntime_gpu/1.10.0/onnxruntime_gpu-1.10.0.jar',
-    f'{M2_REPO}/org/jdom/jdom/1.1/jdom-1.1.jar',
-    f'{M2_REPO}/com/fasterxml/jackson/core/jackson-databind/2.18.4/jackson-databind-2.18.4.jar',
-    f'{M2_REPO}/com/fasterxml/jackson/core/jackson-annotations/2.18.4/jackson-annotations-2.18.4.jar',
-    f'{M2_REPO}/com/fasterxml/jackson/core/jackson-core/2.18.4/jackson-core-2.18.4.jar',
-    f'{M2_REPO}/org/apache/commons/commons-compress/1.26.0/commons-compress-1.26.0.jar',
-    f'{M2_REPO}/org/apache/commons/commons-math3/3.6.1/commons-math3-3.6.1.jar',
-    f'{M2_REPO}/one/util/streamex/0.8.3/streamex-0.8.3.jar',
+    os.path.join(AGENT_DIR, "target", "classes"),
+    os.path.join(AGENT_DIR, "src", "resources", "mallet.jar"),
+    os.path.join(AGENT_DIR, "src", "resources", "mallet-deps.jar"),
+    maven_deps
 ])
 
 DEFAULT_PORT = 7999
