@@ -20,9 +20,9 @@ def send_commands(commands):
             SESSION_ID = resp.get("sessionId")
             return resp.get("output")
         else:
-            return f"❌ Error: {resp.get('error')}"
+            return f"Error: {resp.get('error')}"
     except Exception as e:
-        return f"❌ Connection Error: {str(e)}"
+        return f"Connection Error: {str(e)}"
 
 def main():
     print("=== AlphaStS Interactive Test Terminal ===")
@@ -31,7 +31,7 @@ def main():
 
     while True:
         try:
-            user_input = input("🎮 SpireAI > ").strip()
+            user_input = input("SpireAI > ").strip()
             
             if not user_input:
                 continue
@@ -59,7 +59,7 @@ def main():
             if "RESULT:" in output:
                 # Highlight AI decision result
                 parts = output.split(":")
-                print(f"\n✨ AI Decision Result ✨")
+                print(f"\nAI Decision Result")
                 print(f"  Action Index: {parts[1]}")
                 print(f"  Action Content: {parts[2]}")
                 print(f"  Action Type: {parts[3]}")

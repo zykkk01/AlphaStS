@@ -1,0 +1,3 @@
+[submodule "spirecomm"]
+	path = spirecomm
+	url = https://github.com/zykkk01/spirecomm.git

@@ -222,16 +222,82 @@ public class InteractiveMode {
                 printActionHistory(state, states);
             } else if (line.startsWith("model ")) {
                 modelExecutor = new ModelExecutor(line.split(" ")[1]);
-            } else if (line.equals("eh")) {
-                setEnemyHealth(reader, state, history);
-                printState = true;
+            } else if (line.startsWith("se ")) {
+                int r = Integer.parseInt(line.split(" ")[1]);
+                state.writeLock();
+                try {
+                    state.battleRandomizationIdxChosen = r;
+                    state.properties.randomization.randomize(state, r);
+                    state.clearAllSearchInfo();
+                    out.println("Encounter set to scenario: " + r);
+                } catch (Exception e) {
+                    out.println("Error setting encounter: " + e.getMessage());
+                } finally {
+                    state.writeUnlock();
+                }
+            } else if (line.startsWith("eh ")) {
+                String[] p = line.split(" ");
+                int aliveIdx = Integer.parseInt(p[1]);
+                int hp = Integer.parseInt(p[2]);
+                state.writeLock();
+                try {
+                    int globalIdx = -1;
+                    int count = 0;
+                    for (int i = 0; i < state.getEnemiesForRead().size(); i++) {
+                        if (state.getEnemiesForRead().get(i).getHealth() > 0) {
+                            if (count == aliveIdx) {
+                                globalIdx = i;
+                                break;
+                            }
+                            count++;
+                        }
+                    }
+
+                    if (globalIdx != -1) {
+                        if (hp <= 0) {
+                            state.killEnemy(globalIdx, false);
+                        } else {
+                            state.getEnemiesForWrite().getForWrite(globalIdx).setHealth(hp);
+                        }
+                        state.clearAllSearchInfo();
+                        out.println("Enemy " + aliveIdx + " (Global " + globalIdx + ") HP set to " + hp);
+                    } else {
+                        out.println("Error: Alive enemy index " + aliveIdx + " not found.");
+                    }
+                } finally {
+                    state.writeUnlock();
+                }
             } else if (line.equals("eho")) {
                 setEnemyHealthOriginal(reader, state, history);
                 printState = true;
-            } else if (line.equals("em")) {
-                setEnemyMove(reader, state, history);
-                printState = true;
-            } else if (line.equals("eo")) {
+            } else if (line.startsWith("em ")) {
+                String[] p = line.split(" ");
+                int aliveIdx = Integer.parseInt(p[1]);
+                int move = Integer.parseInt(p[2]);
+                state.writeLock();
+                try {
+                    int globalIdx = -1;
+                    int count = 0;
+                    for (int i = 0; i < state.getEnemiesForRead().size(); i++) {
+                        if (state.getEnemiesForRead().get(i).getHealth() > 0) {
+                            if (count == aliveIdx) {
+                                globalIdx = i;
+                                break;
+                            }
+                            count++;
+                        }
+                    }
+
+                    if (globalIdx != -1) {
+                        state.getEnemiesForWrite().getForWrite(globalIdx).setMove(move);
+                        state.clearAllSearchInfo();
+                        out.println("Enemy " + aliveIdx + " (Global " + globalIdx + ") move set to " + move);
+                    }
+                } finally {
+                    state.writeUnlock();
+                }
+            }
+            else if (line.equals("eo")) {
                 setEnemyOther(reader, state, history);
                 printState = true;
             } else if (line.startsWith("ph ")) {

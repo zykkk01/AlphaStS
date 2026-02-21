@@ -2075,7 +2075,7 @@ public final class GameState implements State {
             }
             if (actionCtx == GameActionCtx.BEGIN_BATTLE) {
                 if (properties.randomization != null) {
-                    if (properties.isHeartGauntlet && battleRandomizationIdxChosen >= 0) {
+                    if (battleRandomizationIdxChosen >= 0) {
                         properties.randomization.randomize(this, battleRandomizationIdxChosen);
                     } else {
                         battleRandomizationIdxChosen = properties.randomization.randomize(this);
