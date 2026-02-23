@@ -396,18 +396,19 @@ public class InteractiveMode {
                 if (parts.length >= 6) p.applyDebuff(state, DebuffType.WEAK, Integer.parseInt(parts[5]));
                 out.println("Player stats updated.");
             } else if (line.startsWith("sh ")) {
-                String[] cardNames = line.substring(3).split(",");
-                state.handArrLen = 0;
-                state.clearAllSearchInfo();
-                for (String name : cardNames) {
-                    var allCards = Arrays.stream(state.properties.cardDict).map(c -> c.cardName).toList();
-                    var match = com.alphaStS.utils.FuzzyMatch.getBestFuzzyMatch(name.trim(), allCards);
-                    if (match != null) {
-                        int idx = allCards.indexOf(match);
-                        state.addCardToHand(idx);
+                state.writeLock();
+                try {
+                    state.handArrLen = 0;
+                    String content = line.substring(3).trim();
+                    if (!content.isEmpty()) {
+                        for (String n : content.split(",")) {
+                            int idx = state.properties.findCardIndex(n.trim());
+                            if (idx != -1) state.addCardToHand(idx);
+                        }
                     }
-                }
-                out.println("Hand synced: " + state.handArrLen + " cards.");
+                    state.clearAllSearchInfo();
+                    out.println("Hand synced.");
+                } finally { state.writeUnlock(); }
             } else if (line.startsWith("decide ")) {
                 System.err.println(">>> AI is thinking...");
                 state.writeLock();
@@ -430,6 +431,32 @@ public class InteractiveMode {
                 } finally {
                     state.writeUnlock();
                 }
+            } else if (line.startsWith("sd ")) {
+                state.writeLock();
+                try {
+                    state.discardArrLen = 0;
+                    String content = line.substring(3).trim();
+                    if (!content.isEmpty()) {
+                        for (String n : content.split(",")) {
+                            int idx = state.properties.findCardIndex(n.trim());
+                            if (idx != -1) state.addCardToDiscard(idx);
+                        }
+                    }
+                    out.println("Discard synced.");
+                } finally { state.writeUnlock(); }
+            } else if (line.startsWith("sx ")) {
+                state.writeLock();
+                try {
+                    state.exhaustArrLen = 0;
+                    String content = line.substring(3).trim();
+                    if (!content.isEmpty()) {
+                        for (String n : content.split(",")) {
+                            int idx = state.properties.findCardIndex(n.trim()); 
+                            if (idx != -1) state.addCardToExhaust(idx);
+                        }
+                    }
+                    out.println("Exhaust synced.");
+                } finally { state.writeUnlock(); }
             } else {
                 int action = parseActionInput(state, line);
                 if (action >= 0 && action <= state.getLegalActions().length) {

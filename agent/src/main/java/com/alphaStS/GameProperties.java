@@ -343,6 +343,27 @@ public class GameProperties implements Cloneable {
         return cached != null ? cached : new int[0];
     }
 
+    public int findCardIndex(String name) {
+        String cleanName = name.trim();
+        if (cleanName.isEmpty()) return -1;
+        
+        for (int i = 0; i < cardDict.length; i++) {
+            if (cardDict[i].cardName.equalsIgnoreCase(cleanName)) {
+                return i;
+            }
+        }
+
+        var allCardNames = Arrays.stream(cardDict)
+                                .map(c -> c.cardName)
+                                .toList();
+        String match = com.alphaStS.utils.FuzzyMatch.getBestFuzzyMatch(cleanName, allCardNames);
+        if (match != null) {
+            return allCardNames.indexOf(match);
+        }
+
+        return -1;
+    }
+
     public interface CounterRegistrant {
         void setCounterIdx(GameProperties gameProperties, int idx);
         int getCounterIdx(GameProperties gameProperties);
@@ -890,5 +911,29 @@ public class GameProperties implements Cloneable {
             return card.cardName.substring(0, card.cardName.indexOf(" ("));
         }
         return card.cardName;
+    }
+
+    private int findCardIndexByName(GameState state, String cardName) {
+        String target = cardName.trim().toLowerCase();
+        for (int i = 0; i < state.properties.cardDict.length; i++) {
+            String dictName = state.properties.cardDict[i].cardName.toLowerCase();
+            if (dictName.equals(target)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private int getGlobalEnemyIdx(GameState state, int aliveIdx) {
+        int count = 0;
+        for (int i = 0; i < state.getEnemiesForRead().size(); i++) {
+            if (state.getEnemiesForRead().get(i).getHealth() > 0) {
+                if (count == aliveIdx) {
+                    return i;
+                }
+                count++;
+            }
+        }
+        return -1;
     }
 }
