@@ -14,3 +14,4 @@ agent/hs_err_p*
 .claude/
 .interactive_server.pid
 .interactive_server.log
+compile_and_start_server.sh

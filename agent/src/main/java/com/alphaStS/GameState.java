@@ -5925,4 +5925,17 @@ public final class GameState implements State {
         }
         return false;
     }
+
+    public int getGlobalEnemyIdx(int aliveIdx) {
+    int count = 0;
+    for (int i = 0; i < getEnemiesForRead().size(); i++) {
+        if (getEnemiesForRead().get(i).getHealth() > 0) {
+            if (count == aliveIdx) {
+                return i;
+            }
+            count++;
+        }
+    }
+    return -1;
+}
 }

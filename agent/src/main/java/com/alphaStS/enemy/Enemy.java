@@ -113,6 +113,14 @@ public abstract class Enemy extends EnemyReadOnly {
         this.move = move;
     }
 
+    public void setStrength(int strength) {
+        this.strength = strength;
+    }
+
+    public void setArtifact(int artifact) {
+        this.artifact = artifact;
+    }
+
     public void startTurn(GameState state) {
         block = 0;
         if (poison > 0) {

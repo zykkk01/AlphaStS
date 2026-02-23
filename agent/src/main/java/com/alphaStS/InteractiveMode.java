@@ -387,14 +387,17 @@ public class InteractiveMode {
                 out.println("Player block set to " + state.getPlayeForRead().getBlock());
             } else if (line.startsWith("ps ")) {
                 String[] parts = line.split(" ");
-                var p = state.getPlayerForWrite();
-                state.clearAllSearchInfo();
-                if (parts.length >= 2) p.setStrength(Integer.parseInt(parts[1]));
-                if (parts.length >= 3) p.setDexterity(Integer.parseInt(parts[2]));
-                if (parts.length >= 4) p.setArtifact(Integer.parseInt(parts[3]));
-                if (parts.length >= 5) p.applyDebuff(state, DebuffType.VULNERABLE, Integer.parseInt(parts[4]));
-                if (parts.length >= 6) p.applyDebuff(state, DebuffType.WEAK, Integer.parseInt(parts[5]));
-                out.println("Player stats updated.");
+                state.writeLock();
+                try {
+                    var p = state.getPlayerForWrite();
+                    state.clearAllSearchInfo();
+                    if (parts.length >= 2) p.setStrength(Integer.parseInt(parts[1]));
+                    if (parts.length >= 3) p.setDexterity(Integer.parseInt(parts[2]));
+                    if (parts.length >= 4) p.setArtifact(Integer.parseInt(parts[3]));
+                    if (parts.length >= 5) p.applyDebuff(state, DebuffType.VULNERABLE, Integer.parseInt(parts[4]));
+                    if (parts.length >= 6) p.applyDebuff(state, DebuffType.WEAK, Integer.parseInt(parts[5]));
+                    out.println("Player stats updated.");
+                } finally { state.writeUnlock(); }
             } else if (line.startsWith("sh ")) {
                 state.writeLock();
                 try {
@@ -456,6 +459,21 @@ public class InteractiveMode {
                         }
                     }
                     out.println("Exhaust synced.");
+                } finally { state.writeUnlock(); }
+            } else if (line.startsWith("es ")) {
+                String[] p = line.split(" ");
+                int aliveIdx = Integer.parseInt(p[1]);
+                state.writeLock();
+                try {
+                    int gIdx = state.getGlobalEnemyIdx(aliveIdx);
+                    if (gIdx != -1) {
+                        var e = state.getEnemiesForWrite().getForWrite(gIdx);
+                        if (p.length >= 3) e.setStrength(Integer.parseInt(p[2]));
+                        if (p.length >= 4) e.setArtifact(Integer.parseInt(p[3]));
+                        if (p.length >= 5) e.applyDebuff(state, DebuffType.VULNERABLE, Integer.parseInt(p[4]));
+                        if (p.length >= 6) e.applyDebuff(state, DebuffType.WEAK, Integer.parseInt(p[5]));
+                        if (p.length >= 7) e.applyDebuff(state, DebuffType.POISON, Integer.parseInt(p[6]));
+                    }
                 } finally { state.writeUnlock(); }
             } else {
                 int action = parseActionInput(state, line);
